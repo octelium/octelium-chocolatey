@@ -15,6 +15,7 @@
     <bugTrackerUrl>https://github.com/octelium/octelium/issues</bugTrackerUrl>
     <copyright>Copyright © Octelium Labs, LLC.</copyright>
     <packageSourceUrl>https://github.com/octelium/octelium</packageSourceUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/octelium/octelium-chocolatey@main/icon/octelium.png</iconUrl>
   </metadata>
   <files>
     <file src="tools\**" target="tools" />
