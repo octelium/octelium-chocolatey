@@ -1,32 +1,30 @@
 $ErrorActionPreference = 'Stop'
-$toolsDir = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
 
 $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
 
 if ($arch -eq 'arm64') {
-    $urlOctelium    = "https://github.com/octelium/octelium/releases/download/v0.27.0/octelium-windows-arm64.zip"
-    $hashOctelium   = "${SHA_OCTELIUM_WINDOWS_ARM64}"
-    $urlOcteliumctl = "https://github.com/octelium/octelium/releases/download/v0.27.0/octeliumctl-windows-arm64.zip"
-    $hashOcteliumctl= "${SHA_OCTELIUMCTL_WINDOWS_ARM64}"
-    $urlOctops      = "https://github.com/octelium/octelium/releases/download/v0.27.0/octops-windows-arm64.zip"
-    $hashOctops     = "${SHA_OCTOPS_WINDOWS_ARM64}"
+    $urlOctelium    = "https://github.com/octelium/octelium/releases/download/v0.27.0/octelium-0.27.0-arm64.msi"
+    $hashOctelium   = "a852c75576de0993f907b528f479aa6af5b75c50b69a87a9cef10807f9d30e73"
+    $urlOcteliumctl = "https://github.com/octelium/octelium/releases/download/v0.27.0/octeliumctl-0.27.0-arm64.msi"
+    $hashOcteliumctl= "e8a5bb820601f837b5eb5c4e3a92e7f61d593eed7bf21592e035f61ffcfba948"
+    $urlOctops      = "https://github.com/octelium/octelium/releases/download/v0.27.0/octops-0.27.0-arm64.msi"
+    $hashOctops     = "82ce1e1fba19dc4b46d1878102dc5241f99f3911d1a0e1a54c409971c8e337eb"
 } else {
-    $urlOctelium    = "https://github.com/octelium/octelium/releases/download/v0.27.0/octelium-windows-amd64.zip"
-    $hashOctelium   = "${SHA_OCTELIUM_WINDOWS_AMD64}"
-    $urlOcteliumctl = "https://github.com/octelium/octelium/releases/download/v0.27.0/octeliumctl-windows-amd64.zip"
-    $hashOcteliumctl= "${SHA_OCTELIUMCTL_WINDOWS_AMD64}"
-    $urlOctops      = "https://github.com/octelium/octelium/releases/download/v0.27.0/octops-windows-amd64.zip"
-    $hashOctops     = "${SHA_OCTOPS_WINDOWS_AMD64}"
+    $urlOctelium    = "https://github.com/octelium/octelium/releases/download/v0.27.0/octelium-0.27.0-amd64.msi"
+    $hashOctelium   = "c4b699c56dcd4964aaa68989628de13ae7ac81e5dbb014239ed168aac168f712"
+    $urlOcteliumctl = "https://github.com/octelium/octelium/releases/download/v0.27.0/octeliumctl-0.27.0-amd64.msi"
+    $hashOcteliumctl= "e243ca48cd486a3ec7a4445aa8fe391b7dd0fa0b3aaaa877b645fca377cc4360"
+    $urlOctops      = "https://github.com/octelium/octelium/releases/download/v0.27.0/octops-0.27.0-amd64.msi"
+    $hashOctops     = "00a9bad3cffea5005fff9ebff10442bb587fb3a5c966e9f3273b592adcba03da"
 }
 
-Install-ChocolateyZipPackage -PackageName 'octelium' `
-    -Url $urlOctelium -Checksum $hashOctelium -ChecksumType 'sha256' `
-    -UnzipLocation $toolsDir
+$packageArgs = @{
+    packageName    = 'octelium'
+    fileType       = 'msi'
+    silentArgs     = "/quiet /norestart"
+    validExitCodes = @(0, 3010, 1641) # 3010 is 'Restart Required'
+}
 
-Install-ChocolateyZipPackage -PackageName 'octeliumctl' `
-    -Url $urlOcteliumctl -Checksum $hashOcteliumctl -ChecksumType 'sha256' `
-    -UnzipLocation $toolsDir
-
-Install-ChocolateyZipPackage -PackageName 'octops' `
-    -Url $urlOctops -Checksum $hashOctops -ChecksumType 'sha256' `
-    -UnzipLocation $toolsDir
+Install-ChocolateyPackage @packageArgs -Url $urlOctelium -Checksum $hashOctelium -ChecksumType 'sha256'
+Install-ChocolateyPackage @packageArgs -Url $urlOcteliumctl -Checksum $hashOcteliumctl -ChecksumType 'sha256'
+Install-ChocolateyPackage @packageArgs -Url $urlOctops -Checksum $hashOctops -ChecksumType 'sha256'
