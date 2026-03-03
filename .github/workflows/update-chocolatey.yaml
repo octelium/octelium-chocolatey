@@ -43,22 +43,24 @@ jobs:
 
       - name: Generate Package Files from Templates
         run: |
+          VARS_TO_SUBST='$TAG $CLEAN_VERSION'
+          
           for BIN in octelium octeliumctl octops; do
             for ARCH in amd64 arm64; do
               VAR_NAME="SHA_${BIN}_WINDOWS_${ARCH}"
               VAR_NAME=$(echo "$VAR_NAME" | tr '[:lower:]' '[:upper:]')
-              FILE_NAME="${BIN}-windows-${ARCH}.zip"
+              VARS_TO_SUBST="$VARS_TO_SUBST \$$VAR_NAME" # Append to the list
               
+              FILE_NAME="${BIN}-windows-${ARCH}.zip"
               SHA=$(grep -E "(^|[[:space:]])${FILE_NAME}($|[[:space:]])" SHA256SUMS | awk '{print $1}' || true)
               
               if [ -z "$SHA" ]; then echo "Error: No checksum for $FILE_NAME"; exit 1; fi
-              
               export $VAR_NAME="$SHA"
             done
           done
 
-          envsubst < octelium/octelium.nuspec.tmpl > octelium/octelium.nuspec
-          envsubst < octelium/tools/chocolateyInstall.ps1.tmpl > octelium/tools/chocolateyInstall.ps1
+          envsubst "$VARS_TO_SUBST" < octelium/octelium.nuspec.tmpl > octelium/octelium.nuspec
+          envsubst "$VARS_TO_SUBST" < octelium/tools/chocolateyInstall.ps1.tmpl > octelium/tools/chocolateyInstall.ps1
 
       - name: Commit and Push
         run: |
