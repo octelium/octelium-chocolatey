@@ -39,3 +39,18 @@ jobs:
           } else {
               throw "Error: wireguard.dll not found in $InstallDir. Looked at $RealExePath"
           }
+
+      - name: Test Uninstallation
+        run: |
+          choco uninstall octelium -y
+          
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          if (Get-Command octelium.exe -ErrorAction SilentlyContinue) {
+              throw "Error: octelium shim still exists in PATH!"
+          }
+
+          if (Test-Path "$env:INSTALL_DIR\octelium.exe") {
+              throw "Error: octelium.exe still exists in $env:INSTALL_DIR after uninstall!"
+          }
+          
+          Write-Output "Uninstallation successful: Binaries and Shims removed."
