@@ -1,3 +1,12 @@
-$toolsDir = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
-Remove-Item -Path "$toolsDir\*.exe" -Force -ErrorAction SilentlyContinue
-Remove-Item -Path "$toolsDir\*.dll" -Force -ErrorAction SilentlyContinue
+$ErrorActionPreference = 'Stop'
+
+$msiNames = @('octelium', 'octeliumctl', 'octops')
+
+foreach ($name in $msiNames) {
+    Write-Output "Uninstalling $name..."
+    
+    Uninstall-ChocolateyPackage `
+        -PackageName $name `
+        -FileType 'msi' `
+        -SilentArgs "/quiet /norestart"
+}

@@ -47,11 +47,12 @@ jobs:
           
           for BIN in octelium octeliumctl octops; do
             for ARCH in amd64 arm64; do
-              VAR_NAME="SHA_${BIN}_WINDOWS_${ARCH}"
+              VAR_NAME="SHA_${BIN}_MSI_${ARCH}"
               VAR_NAME=$(echo "$VAR_NAME" | tr '[:lower:]' '[:upper:]')
-              VARS_TO_SUBST="$VARS_TO_SUBST \$$VAR_NAME" # Append to the list
+              VARS_TO_SUBST="$VARS_TO_SUBST \$$VAR_NAME"
               
-              FILE_NAME="${BIN}-windows-${ARCH}.zip"
+              FILE_NAME="${BIN}-${CLEAN_VERSION}-${ARCH}.msi"
+              
               SHA=$(grep -E "(^|[[:space:]])${FILE_NAME}($|[[:space:]])" SHA256SUMS | awk '{print $1}' || true)
               
               if [ -z "$SHA" ]; then echo "Error: No checksum for $FILE_NAME"; exit 1; fi
