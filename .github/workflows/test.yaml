@@ -6,30 +6,29 @@ on:
 jobs:
   test-choco:
     runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-steps:
-  - name: Checkout Repository
-    uses: actions/checkout@v4
+      - name: Pack and Install
+        working-directory: ./octelium
+        run: |
+          choco pack octelium.nuspec
+          choco install octelium -s "." -y
 
-  - name: Pack and Install
-    working-directory: ./octelium
-    run: |
-      choco pack octelium.nuspec
-      choco install octelium -s "." -y
+      - name: Verify Installation
+        run: |
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 
-  - name: Verify Installation
-    run: |
-      $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          Write-Output "Testing binaries..."
+          octelium version
+          octeliumctl version
+          octops version
 
-      Write-Output "Testing binaries..."
-      octelium version
-      octeliumctl version
-      octops version
-      
-      $OcteliumPath = (Get-Command octelium.exe).Source
-      $InstallDir = Split-Path $OcteliumPath -Parent
-      if (Test-Path "$InstallDir\wireguard.dll") {
-          Write-Output "Verified: wireguard.dll exists in $InstallDir"
-      } else {
-           throw "Error: wireguard.dll not found in $InstallDir"
-      }
+          $OcteliumPath = (Get-Command octelium.exe).Source
+          $InstallDir = Split-Path $OcteliumPath -Parent
+          if (Test-Path "$InstallDir\wireguard.dll") {
+              Write-Output "Verified: wireguard.dll exists in $InstallDir"
+          } else {
+              throw "Error: wireguard.dll not found in $InstallDir"
+          }
