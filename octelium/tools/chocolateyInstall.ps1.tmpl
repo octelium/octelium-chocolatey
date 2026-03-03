@@ -1,0 +1,32 @@
+$ErrorActionPreference = 'Stop'
+$toolsDir = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
+
+$arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
+
+if ($arch -eq 'arm64') {
+    $urlOctelium    = "https://github.com/octelium/octelium/releases/download/${TAG}/octelium-windows-arm64.zip"
+    $hashOctelium   = "${SHA_OCTELIUM_WINDOWS_ARM64}"
+    $urlOcteliumctl = "https://github.com/octelium/octelium/releases/download/${TAG}/octeliumctl-windows-arm64.zip"
+    $hashOcteliumctl= "${SHA_OCTELIUMCTL_WINDOWS_ARM64}"
+    $urlOctops      = "https://github.com/octelium/octelium/releases/download/${TAG}/octops-windows-arm64.zip"
+    $hashOctops     = "${SHA_OCTOPS_WINDOWS_ARM64}"
+} else {
+    $urlOctelium    = "https://github.com/octelium/octelium/releases/download/${TAG}/octelium-windows-amd64.zip"
+    $hashOctelium   = "${SHA_OCTELIUM_WINDOWS_AMD64}"
+    $urlOcteliumctl = "https://github.com/octelium/octelium/releases/download/${TAG}/octeliumctl-windows-amd64.zip"
+    $hashOcteliumctl= "${SHA_OCTELIUMCTL_WINDOWS_AMD64}"
+    $urlOctops      = "https://github.com/octelium/octelium/releases/download/${TAG}/octops-windows-amd64.zip"
+    $hashOctops     = "${SHA_OCTOPS_WINDOWS_AMD64}"
+}
+
+Install-ChocolateyZipPackage -PackageName 'octelium' `
+    -Url $urlOctelium -Checksum $hashOctelium -ChecksumType 'sha256' `
+    -UnzipLocation $toolsDir
+
+Install-ChocolateyZipPackage -PackageName 'octeliumctl' `
+    -Url $urlOcteliumctl -Checksum $hashOcteliumctl -ChecksumType 'sha256' `
+    -UnzipLocation $toolsDir
+
+Install-ChocolateyZipPackage -PackageName 'octops' `
+    -Url $urlOctops -Checksum $hashOctops -ChecksumType 'sha256' `
+    -UnzipLocation $toolsDir
