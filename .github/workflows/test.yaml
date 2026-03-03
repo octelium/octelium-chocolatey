@@ -1,0 +1,42 @@
+name: Test Chocolatey Package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-choco:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Pack Chocolatey Package
+        working-directory: ./octelium
+        run: |
+          choco pack octelium.nuspec
+
+      - name: Install Local Package
+        working-directory: ./octelium
+        run: |
+          choco install octelium -s "." -y
+
+      - name: Verify Binaries
+        run: |
+          Write-Output "Testing octelium..."
+          octelium version
+          
+          Write-Output "Testing octeliumctl..."
+          octeliumctl version
+          
+          Write-Output "Testing octops..."
+          octops version
+          
+          $OcteliumExePath = (Get-Command octelium.exe).Source
+          $BinDir = Split-Path $OcteliumExePath -Parent
+          if (Test-Path "$BinDir\wireguard.dll") {
+            Write-Output "Success: wireguard.dll found in $BinDir"
+          } else {
+            Write-Error "Failed: wireguard.dll is missing!"
+            exit 1
+          }
