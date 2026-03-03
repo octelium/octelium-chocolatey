@@ -1,12 +1,10 @@
 $ErrorActionPreference = 'Stop'
-
-$msiNames = @('octelium', 'octeliumctl', 'octops')
-
-foreach ($name in $msiNames) {
-    Write-Output "Uninstalling $name..."
-    
-    Uninstall-ChocolateyPackage `
-        -PackageName $name `
-        -FileType 'msi' `
-        -SilentArgs "/quiet /norestart"
+$packageArgs = @{
+    packageName = 'octelium'
+    fileType    = 'msi'
+    silentArgs  = "/quiet /norestart"
 }
+
+Uninstall-ChocolateyPackage @packageArgs
+Uninstall-ChocolateyPackage -PackageName 'octeliumctl' -FileType 'msi' -SilentArgs "/quiet /norestart"
+Uninstall-ChocolateyPackage -PackageName 'octops' -FileType 'msi' -SilentArgs "/quiet /norestart"

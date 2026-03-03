@@ -19,16 +19,23 @@ jobs:
       - name: Verify Installation
         run: |
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-
+          
           Write-Output "Testing binaries..."
           octelium version
           octeliumctl version
           octops version
 
-          $OcteliumPath = (Get-Command octelium.exe).Source
-          $InstallDir = Split-Path $OcteliumPath -Parent
+          $RealExePath = (Get-Command octelium.exe -All | Where-Object { $_.Source -notlike "*Chocolatey\bin*" } | Select-Object -First 1).Source
+          
+          if ($null -eq $RealExePath) {
+              $RealExePath = "C:\Program Files\Octelium\octelium.exe"
+          }
+
+          $InstallDir = Split-Path $RealExePath -Parent
+          Write-Output "Checking for DLL in: $InstallDir"
+
           if (Test-Path "$InstallDir\wireguard.dll") {
               Write-Output "Verified: wireguard.dll exists in $InstallDir"
           } else {
-              throw "Error: wireguard.dll not found in $InstallDir"
+              throw "Error: wireguard.dll not found in $InstallDir. Looked at $RealExePath"
           }
