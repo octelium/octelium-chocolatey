@@ -3,19 +3,19 @@ $ErrorActionPreference = 'Stop'
 $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
 
 if ($arch -eq 'arm64') {
-    $urlOctelium    = "https://github.com/octelium/octelium/releases/download/v0.36.0/octelium-0.36.0-arm64.msi"
-    $hashOctelium   = "c9c80b01f020273c964f75da8a5b377e158d9b8a66dd9ff73196f210b2f62508"
-    $urlOcteliumctl = "https://github.com/octelium/octelium/releases/download/v0.36.0/octeliumctl-0.36.0-arm64.msi"
-    $hashOcteliumctl= "d1339c24fa44c9d1a471806bdac83843ca9cd79026656e1f763b425717936be1"
-    $urlOctops      = "https://github.com/octelium/octelium/releases/download/v0.36.0/octops-0.36.0-arm64.msi"
-    $hashOctops     = "a5c8ce360440d4722fa87c7661fd717c5fe4d05179b3190fad9c8c5563698e31"
+    $urlOctelium    = "https://github.com/octelium/octelium/releases/download/v0.37.0/octelium-0.37.0-arm64.msi"
+    $hashOctelium   = "308e528dd2839cc95c9b516b61b40881d2cd174e300ddbc408773a1a9f268080"
+    $urlOcteliumctl = "https://github.com/octelium/octelium/releases/download/v0.37.0/octeliumctl-0.37.0-arm64.msi"
+    $hashOcteliumctl= "e6114fe7d0cebd412e434753d01ab07f202e3141006a70a279c5c20884af17d3"
+    $urlOctops      = "https://github.com/octelium/octelium/releases/download/v0.37.0/octops-0.37.0-arm64.msi"
+    $hashOctops     = "1e496d970b9c14f6a2c04b8abdcd2d9be092a96867494fa504bc8e7d0f543af5"
 } else {
-    $urlOctelium    = "https://github.com/octelium/octelium/releases/download/v0.36.0/octelium-0.36.0-amd64.msi"
-    $hashOctelium   = "683c65b4a4b0a40abbd3a59c17deba1329039967e387804dbfe5b9d6927770f1"
-    $urlOcteliumctl = "https://github.com/octelium/octelium/releases/download/v0.36.0/octeliumctl-0.36.0-amd64.msi"
-    $hashOcteliumctl= "53242e9bab78195c39623fe37904ea1b8d34ed23791685bc1aebcc2c4b0d1b77"
-    $urlOctops      = "https://github.com/octelium/octelium/releases/download/v0.36.0/octops-0.36.0-amd64.msi"
-    $hashOctops     = "70acb7b675f67120788343106c623b7d38e33332db758f78a9b2b22c2aaa1721"
+    $urlOctelium    = "https://github.com/octelium/octelium/releases/download/v0.37.0/octelium-0.37.0-amd64.msi"
+    $hashOctelium   = "bbc9fe9ce1f1948aea7daf8d065d01ac274c0fe38cb74163a021dac0cd527537"
+    $urlOcteliumctl = "https://github.com/octelium/octelium/releases/download/v0.37.0/octeliumctl-0.37.0-amd64.msi"
+    $hashOcteliumctl= "3f38f93a3ad2ee2ca306621d1b5418a307ecc566173cdd09bef01c25f0addf22"
+    $urlOctops      = "https://github.com/octelium/octelium/releases/download/v0.37.0/octops-0.37.0-amd64.msi"
+    $hashOctops     = "4f6b30f14ec2468e06468e3f80cc8dd8fb1b47458108cb868bc300d9ab775c8c"
 }
 
 $packageArgs = @{
