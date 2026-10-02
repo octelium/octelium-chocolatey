@@ -1,6 +1,9 @@
 name: Update Chocolatey Package
 
 on:
+  schedule:
+    # Every 30 minutes, offset from the busiest start of the hour.
+    - cron: '7,37 * * * *'
   workflow_dispatch:
     inputs:
       version:
@@ -12,94 +15,185 @@ on:
         type: boolean
         required: true
         default: false
+
 permissions:
   contents: write
+
+concurrency:
+  group: update-octelium-chocolatey-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   update-chocolatey:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      update_needed: ${{ steps.resolve.outputs.update_needed }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
       - name: Resolve Version
         id: resolve
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          MANUAL_PUSH: ${{ inputs.push_to_community }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [ -z "${{ github.event.inputs.version }}" ]; then
-            echo "Fetching latest from octelium repo..."
-            TAG=$(curl -fsSL https://raw.githubusercontent.com/octelium/octelium/refs/heads/main/unsorted/latest_release | tr -d '[:space:]')
+          set -euo pipefail
+
+          if [ -z "$REQUESTED_VERSION" ]; then
+            echo "Fetching latest Octelium release from GitHub..."
+            TAG=$(curl -fsSL --retry 3 --connect-timeout 10 --max-time 60 \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              https://api.github.com/repos/octelium/octelium/releases/latest \
+              | jq -er '.tag_name')
           else
-            TAG="${{ github.event.inputs.version }}"
+            TAG="$REQUESTED_VERSION"
           fi
-          
-          if [ -z "$TAG" ]; then echo "Error: Failed to resolve tag."; exit 1; fi
-          
+
+          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Error: Failed to resolve a valid release tag."
+            exit 1
+          fi
+
           CLEAN_VERSION=${TAG#v}
-          
-          echo "TAG=$TAG" >> $GITHUB_ENV
-          echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
+          echo "Target tag: $TAG"
+
+          if [ -z "$REQUESTED_VERSION" ] && [ "$MANUAL_PUSH" != "true" ]; then
+            CURRENT_VERSION=$(python3 -c 'import xml.etree.ElementTree as ET; print(ET.parse("octelium/octelium.nuspec").findtext("./{*}metadata/{*}version", default=""))')
+            if [ -z "$CURRENT_VERSION" ]; then
+              echo "Error: Could not read the current package version."
+              exit 1
+            fi
+
+            if [ "$CLEAN_VERSION" = "$CURRENT_VERSION" ]; then
+              echo "Chocolatey package is already at $TAG. Skipping update."
+              echo "update_needed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "CLEAN_VERSION=$CLEAN_VERSION" >> "$GITHUB_ENV"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$CLEAN_VERSION" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
 
       - name: Download Checksums
+        if: steps.resolve.outputs.update_needed == 'true'
         run: |
+          set -euo pipefail
+
           CHECKSUM_URL="https://github.com/octelium/octelium/releases/download/${TAG}/SHA256SUMS"
-          curl -fsSL "$CHECKSUM_URL" -o SHA256SUMS
+          curl -fsSL --retry 3 --connect-timeout 10 --max-time 60 "$CHECKSUM_URL" -o SHA256SUMS
           if [ ! -s SHA256SUMS ]; then echo "Error: Checksums missing!"; exit 1; fi
 
       - name: Generate Package Files from Templates
+        if: steps.resolve.outputs.update_needed == 'true'
         run: |
+          set -euo pipefail
+
           VARS_TO_SUBST='$TAG $CLEAN_VERSION'
-          
+
           for BIN in octelium octeliumctl octops; do
             for ARCH in amd64 arm64; do
               VAR_NAME="SHA_${BIN}_MSI_${ARCH}"
               VAR_NAME=$(echo "$VAR_NAME" | tr '[:lower:]' '[:upper:]')
               VARS_TO_SUBST="$VARS_TO_SUBST \$$VAR_NAME"
-              
+
               FILE_NAME="${BIN}-${CLEAN_VERSION}-${ARCH}.msi"
-              
-              SHA=$(grep -E "(^|[[:space:]])${FILE_NAME}($|[[:space:]])" SHA256SUMS | awk '{print $1}' || true)
-              
-              if [ -z "$SHA" ]; then echo "Error: No checksum for $FILE_NAME"; exit 1; fi
-              export $VAR_NAME="$SHA"
+              SHA=$(awk -v file="$FILE_NAME" '{ sub(/^\*/, "", $2); if ($2 == file) print $1 }' SHA256SUMS)
+
+              if [[ ! "$SHA" =~ ^[0-9a-fA-F]{64}$ ]]; then
+                echo "Error: Missing or invalid checksum for $FILE_NAME"
+                exit 1
+              fi
+              export "$VAR_NAME=$SHA"
             done
           done
 
           envsubst "$VARS_TO_SUBST" < octelium/octelium.nuspec.tmpl > octelium/octelium.nuspec
           envsubst "$VARS_TO_SUBST" < octelium/tools/chocolateyInstall.ps1.tmpl > octelium/tools/chocolateyInstall.ps1
 
-      - name: Commit and Push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          git add octelium/octelium.nuspec octelium/tools/chocolateyInstall.ps1
-          
-          if git diff --staged --quiet; then
-            echo "Chocolatey package is already up to date."
-          else
-            git commit -m "Update Chocolatey package to ${TAG}"
-            git push
-          fi
+      - name: Upload Generated Package Files
+        if: steps.resolve.outputs.update_needed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: octelium-package-files
+          path: |
+            octelium/octelium.nuspec
+            octelium/tools/chocolateyInstall.ps1
+          if-no-files-found: error
+          retention-days: 7
 
   push-to-choco:
-    name: Push to Chocolatey
+    name: Pack, Publish and Commit Chocolatey Package
     needs: update-chocolatey
     runs-on: windows-latest
-    if: ${{ github.event.inputs.push_to_community == 'true' }}
+    timeout-minutes: 10
+    if: needs.update-chocolatey.outputs.update_needed == 'true'
+    env:
+      TAG: ${{ needs.update-chocolatey.outputs.tag }}
+      CLEAN_VERSION: ${{ needs.update-chocolatey.outputs.version }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.ref_name }}
+
+      - name: Download Generated Package Files
+        uses: actions/download-artifact@v4
+        with:
+          name: octelium-package-files
+          path: ./octelium
 
       - name: Pack Package
         working-directory: ./octelium
+        shell: pwsh
         run: |
           choco pack octelium.nuspec
+          if ($LASTEXITCODE -ne 0) { throw "Chocolatey package creation failed." }
 
-      - name: Authenticate and Push
+      - name: Push to Chocolatey Community Repository
+        if: github.event_name == 'schedule' || inputs.push_to_community
         working-directory: ./octelium
+        shell: pwsh
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
         run: |
-          choco apikey --key ${{ secrets.CHOCO_API_KEY }} --source https://push.chocolatey.org/
+          if ([string]::IsNullOrWhiteSpace($env:CHOCO_API_KEY)) {
+            throw "The CHOCO_API_KEY repository secret must be configured to publish."
+          }
 
-          choco push $(Get-ChildItem *.nupkg | Select-Object -ExpandProperty Name) --source https://push.chocolatey.org/
+          $packagePath = "octelium.$env:CLEAN_VERSION.nupkg"
+          if (-not (Test-Path -LiteralPath $packagePath)) {
+            throw "Package not found: $packagePath"
+          }
+
+          choco push $packagePath --api-key "$env:CHOCO_API_KEY" --source https://push.chocolatey.org/
+          if ($LASTEXITCODE -ne 0) { throw "Chocolatey package publishing failed." }
+
+      - name: Commit and Push
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add octelium/octelium.nuspec octelium/tools/chocolateyInstall.ps1
+
+          if git diff --staged --quiet; then
+            echo "Chocolatey package is already up to date."
+          else
+            # Record the update after publishing so failed uploads can be retried.
+            git commit -m "Update Chocolatey package to ${TAG}"
+            git push
+          fi
