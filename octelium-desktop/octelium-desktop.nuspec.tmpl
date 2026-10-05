@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>octelium-desktop</id>
+    <version>${CLEAN_VERSION}</version>
+    <title>Octelium Desktop</title>
+    <licenseUrl>https://github.com/octelium/octelium-desktop/blob/main/LICENSE</licenseUrl>
+    <authors>Octelium Labs, LLC</authors>
+    <projectUrl>https://octelium.com</projectUrl>
+    <tags>zero-trust ztna vpn remote-access secure-access desktop gui wireguard</tags>
+    <summary>The Octelium desktop application</summary>
+    <description>The Octelium desktop application authenticates to and connects Octelium Clusters using its bundled local daemon. The Windows MSI installs the desktop application, daemon service and required driver libraries.</description>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <docsUrl>https://octelium.com/docs</docsUrl>
+    <bugTrackerUrl>https://github.com/octelium/octelium-desktop/issues</bugTrackerUrl>
+    <copyright>Copyright © Octelium Labs, LLC.</copyright>
+    <packageSourceUrl>https://github.com/octelium/octelium-chocolatey/tree/main/octelium-desktop</packageSourceUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/octelium/octelium-chocolatey@main/icon/octelium.png</iconUrl>
+    <releaseNotes>https://github.com/octelium/octelium-desktop/releases/tag/${TAG}</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\*.ps1" target="tools" />
+    <file src="tools\.skipAutoUninstall" target="tools" />
+  </files>
+</package>

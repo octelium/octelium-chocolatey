@@ -1,0 +1,81 @@
+name: Test Desktop Chocolatey Package
+
+on:
+  push:
+    paths:
+      - 'octelium-desktop/**'
+      - '.github/scripts/**'
+      - '.github/workflows/*desktop*.yaml'
+  pull_request:
+    paths:
+      - 'octelium-desktop/**'
+      - '.github/scripts/**'
+      - '.github/workflows/*desktop*.yaml'
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      package_artifact:
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  test-generation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Test Package Generation
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
+  test-choco:
+    needs: test-generation
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-latest, windows-11-arm]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Save Previous Package for Upgrade Test
+        if: inputs.package_artifact != ''
+        shell: pwsh
+        run: Copy-Item -Path octelium-desktop -Destination "$env:RUNNER_TEMP/desktop-baseline" -Recurse
+
+      - name: Download Generated Package Files
+        if: inputs.package_artifact != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.package_artifact }}
+          path: ./octelium-desktop
+
+      - name: Test Architecture Selection
+        shell: powershell
+        run: ./.github/scripts/test-desktop-install.ps1
+
+      - name: Test Uninstall Selection
+        shell: powershell
+        run: ./.github/scripts/test-desktop-uninstall.ps1
+
+      - name: Test Install, Upgrade and Uninstall
+        shell: pwsh
+        run: ./.github/scripts/test-desktop-package.ps1 -PackageDir octelium-desktop -BaselineDir "$env:RUNNER_TEMP/desktop-baseline"
+
+      - name: Upload Installer Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-installer-logs-${{ matrix.runner }}
+          path: |
+            C:/ProgramData/chocolatey/logs/chocolatey.log
+            C:/ProgramData/Octelium Desktop/installer-error.log
+          if-no-files-found: ignore
+          retention-days: 7

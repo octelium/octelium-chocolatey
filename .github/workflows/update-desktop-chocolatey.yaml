@@ -1,0 +1,192 @@
+name: Update Desktop Chocolatey Package
+
+on:
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Desktop release tag (e.g. v0.2.5). Leave empty for the latest stable release.'
+        required: false
+        default: ''
+      push_to_community:
+        description: 'Push to Chocolatey Community Repository'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-octelium-desktop-chocolatey-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update-chocolatey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      update_needed: ${{ steps.resolve.outputs.update_needed }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Test Package Generation
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
+      - name: Resolve Version
+        id: resolve
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          MANUAL_PUSH: ${{ inputs.push_to_community }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if [ "$MANUAL_PUSH" = "true" ] && [ "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            echo "Error: Desktop packages must be published from the default branch."
+            exit 1
+          fi
+
+          if [ -z "$REQUESTED_VERSION" ]; then
+            RELEASE_PATH=latest
+          elif [[ "$REQUESTED_VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            RELEASE_PATH="tags/$REQUESTED_VERSION"
+          else
+            echo "Error: Expected a stable desktop release tag such as v0.2.5."
+            exit 1
+          fi
+
+          curl -fsSL --retry 3 --connect-timeout 10 --max-time 60 \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/octelium/octelium-desktop/releases/$RELEASE_PATH" \
+            -o release.json
+
+          TAG=$(jq -er '.tag_name' release.json)
+          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]] || \
+            ! jq -e '.draft == false and .prerelease == false' release.json > /dev/null; then
+            echo "Error: Only published stable desktop releases can be packaged."
+            exit 1
+          fi
+
+          CLEAN_VERSION=${TAG#v}
+          CURRENT_VERSION=$(python3 -c 'import xml.etree.ElementTree as ET; print(ET.parse("octelium-desktop/octelium-desktop.nuspec").findtext("./{*}metadata/{*}version", default=""))')
+          python3 -c 'import sys; target, current = (tuple(map(int, value.split("."))) for value in sys.argv[1:]); sys.exit("Refusing to downgrade the desktop package.") if target < current else None' "$CLEAN_VERSION" "$CURRENT_VERSION"
+
+          if [ "$CLEAN_VERSION" = "$CURRENT_VERSION" ] && [ -z "$REQUESTED_VERSION" ] && [ "$MANUAL_PUSH" != "true" ]; then
+            echo "Desktop package is already at $TAG. Skipping update."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$CLEAN_VERSION" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Download Checksums and Generate Package Files
+        if: steps.resolve.outputs.update_needed == 'true'
+        run: |
+          set -euo pipefail
+
+          curl -fsSL --retry 3 --connect-timeout 10 --max-time 60 \
+            "https://github.com/octelium/octelium-desktop/releases/download/$TAG/SHA256SUMS" \
+            -o SHA256SUMS
+          python3 .github/scripts/update-desktop-package.py \
+            --release-json release.json --checksums SHA256SUMS > downloads.json
+
+          while IFS= read -r DOWNLOAD; do
+            URL=$(jq -er '.url' <<< "$DOWNLOAD")
+            SHA=$(jq -er '.checksum' <<< "$DOWNLOAD")
+            curl -fsSL --retry 3 --connect-timeout 10 --max-time 120 "$URL" -o installer.msi
+            echo "$SHA  installer.msi" | sha256sum --check --strict
+          done < <(jq -c '.[]' downloads.json)
+
+      - name: Upload Generated Package Files
+        if: steps.resolve.outputs.update_needed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: octelium-desktop-package-files
+          path: |
+            octelium-desktop/octelium-desktop.nuspec
+            octelium-desktop/tools/chocolateyInstall.ps1
+          if-no-files-found: error
+          retention-days: 7
+
+  test-choco:
+    needs: update-chocolatey
+    if: needs.update-chocolatey.outputs.update_needed == 'true'
+    uses: ./.github/workflows/test-desktop.yaml
+    with:
+      package_artifact: octelium-desktop-package-files
+
+  push-to-choco:
+    name: Pack, Publish and Record Desktop Package
+    needs: [update-chocolatey, test-choco]
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.update-chocolatey.outputs.tag }}
+      CLEAN_VERSION: ${{ needs.update-chocolatey.outputs.version }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Generated Package Files
+        uses: actions/download-artifact@v4
+        with:
+          name: octelium-desktop-package-files
+          path: ./octelium-desktop
+
+      - name: Pack Package
+        working-directory: ./octelium-desktop
+        shell: pwsh
+        run: |
+          choco pack octelium-desktop.nuspec
+          if ($LASTEXITCODE -ne 0) { throw "Desktop package creation failed." }
+
+      - name: Upload Chocolatey Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: octelium-desktop-nupkg
+          path: octelium-desktop/*.nupkg
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Push to Chocolatey Community Repository
+        if: github.event_name == 'schedule' || inputs.push_to_community
+        working-directory: ./octelium-desktop
+        shell: pwsh
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CHOCO_API_KEY)) {
+            throw "The CHOCO_API_KEY repository secret must be configured to publish."
+          }
+
+          choco push "octelium-desktop.$env:CLEAN_VERSION.nupkg" --api-key "$env:CHOCO_API_KEY" --source https://push.chocolatey.org/
+          if ($LASTEXITCODE -ne 0) { throw "Desktop package publishing failed." }
+
+      - name: Record Published Version
+        if: github.event_name == 'schedule' || inputs.push_to_community
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add octelium-desktop/octelium-desktop.nuspec octelium-desktop/tools/chocolateyInstall.ps1
+
+          if ! git diff --staged --quiet; then
+            git commit -m "Update desktop Chocolatey package to $TAG"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi

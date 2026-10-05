@@ -1,0 +1,26 @@
+$ErrorActionPreference = 'Stop'
+
+$arch = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment' -Name PROCESSOR_ARCHITECTURE).PROCESSOR_ARCHITECTURE
+
+if ($arch -eq 'ARM64') {
+    $url  = "${URL_MSI_ARM64}"
+    $hash = "${SHA_MSI_ARM64}"
+} elseif ($arch -eq 'AMD64') {
+    $url  = "${URL_MSI_AMD64}"
+    $hash = "${SHA_MSI_AMD64}"
+} else {
+    throw 'Octelium Desktop requires an x64 or ARM64 version of Windows.'
+}
+
+$packageArgs = @{
+    packageName    = 'octelium-desktop'
+    fileType       = 'msi'
+    silentArgs     = "/quiet /norestart"
+    validExitCodes = @(0, 3010, 1641)
+    softwareName   = 'Octelium Desktop'
+    url64bit       = $url
+    checksum64     = $hash
+    checksumType64 = 'sha256'
+}
+
+Install-ChocolateyPackage @packageArgs
