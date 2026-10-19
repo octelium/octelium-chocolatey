@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>octelium-desktop</id>
-    <version>0.2.6</version>
+    <version>0.2.8</version>
     <title>Octelium Desktop</title>
     <licenseUrl>https://github.com/octelium/octelium-desktop/blob/main/LICENSE</licenseUrl>
     <authors>Octelium Labs, LLC</authors>
@@ -16,7 +16,7 @@
     <copyright>Copyright © Octelium Labs, LLC.</copyright>
     <packageSourceUrl>https://github.com/octelium/octelium-chocolatey/tree/main/octelium-desktop</packageSourceUrl>
     <iconUrl>https://cdn.jsdelivr.net/gh/octelium/octelium-chocolatey@main/icon/octelium.png</iconUrl>
-    <releaseNotes>https://github.com/octelium/octelium-desktop/releases/tag/v0.2.6</releaseNotes>
+    <releaseNotes>https://github.com/octelium/octelium-desktop/releases/tag/v0.2.8</releaseNotes>
   </metadata>
   <files>
     <file src="tools\*.ps1" target="tools" />
