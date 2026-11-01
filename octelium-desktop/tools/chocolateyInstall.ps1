@@ -3,11 +3,11 @@ $ErrorActionPreference = 'Stop'
 $arch = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment' -Name PROCESSOR_ARCHITECTURE).PROCESSOR_ARCHITECTURE
 
 if ($arch -eq 'ARM64') {
-    $url  = "https://github.com/octelium/octelium-desktop/releases/download/v0.2.8/octelium-desktop-windows-arm64-Octelium.Desktop_0.2.8_arm64_en-US.msi"
-    $hash = "b2e88f806e0b031866ffb2b1db4734f496e7baba1be9444cf549065f0b9414c8"
+    $url  = "https://github.com/octelium/octelium-desktop/releases/download/v0.3.0/octelium-desktop-windows-arm64-Octelium.Desktop_0.3.0_arm64_en-US.msi"
+    $hash = "e40f81d07d9311c2f6c1d9d496176cc2eac06f2674b59c0f9f00b1f9f86aca43"
 } elseif ($arch -eq 'AMD64') {
-    $url  = "https://github.com/octelium/octelium-desktop/releases/download/v0.2.8/octelium-desktop-windows-amd64-Octelium.Desktop_0.2.8_x64_en-US.msi"
-    $hash = "7f977d9a4f47fb1742df9dd5bb57f7c4c2fdda21438e894c1972cf451188410c"
+    $url  = "https://github.com/octelium/octelium-desktop/releases/download/v0.3.0/octelium-desktop-windows-amd64-Octelium.Desktop_0.3.0_x64_en-US.msi"
+    $hash = "1f3c7dead739ea3c13c4b6fec14a239cf7644e5d18afeb67e4b4ac577f424113"
 } else {
     throw 'Octelium Desktop requires an x64 or ARM64 version of Windows.'
 }
